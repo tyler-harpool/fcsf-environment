@@ -12,7 +12,7 @@ spec:
           - path: base/*/overlays/local
   template:
     metadata:
-      name: '{{path[1] | lower}}'  # Ensure the name is in lowercase
+      name: '{{path[1]}}-{{path[2]}}'  # Use more parts of the path to generate unique names
       annotations:
         argocd.argoproj.io/sync-wave: "{{path[1] == 'argocd' && '0' || '1'}}"
     spec:
@@ -23,7 +23,7 @@ spec:
         path: '{{path}}'
       destination:
         server: https://kubernetes.default.svc
-        namespace: '{{path[1] | lower}}'  # Ensure the namespace is in lowercase
+        namespace: '{{path[1]}}'  # Ensure the namespace is in lowercase
       syncPolicy:
         automated:
           prune: true
