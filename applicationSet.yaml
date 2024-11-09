@@ -9,12 +9,12 @@ spec:
         repoURL: https://github.com/tyler-harpool/fcsf-environment.git
         revision: HEAD
         directories:
-          - path: base/*
+          - path: base/*/overlays/local  # Changed to match your structure
   template:
     metadata:
-      name: '{{path.basename}}'
+      name: '{{path[1]}}'  # This will use the second part of the path as the name
       annotations:
-        argocd.argoproj.io/sync-wave: "{{path.basename == 'argocd' && '0' || '1'}}"
+        argocd.argoproj.io/sync-wave: "{{path[1] == 'argocd' && '0' || '1'}}"
     spec:
       project: default
       source:
@@ -23,12 +23,10 @@ spec:
         path: '{{path}}'
       destination:
         server: https://kubernetes.default.svc
-        namespace: '{{path.basename}}'
+        namespace: '{{path[1]}}'  # Uses the component name as namespace
       syncPolicy:
         automated:
           prune: true
           selfHeal: true
         syncOptions:
           - CreateNamespace=true
-          - PrunePropagationPolicy=foreground
-          - PruneLast=true
