@@ -1,23 +1,20 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: argocd-server-ingress
-  namespace: argocd
+  name: argo-server-ingress
+  namespace: argo
   annotations:
-    ingress.kubernetes.io/ssl-redirect: "false"
+    kubernetes.io/ingress.class: traefik
     traefik.ingress.kubernetes.io/router.entrypoints: web
 spec:
   rules:
-    - host: argocd.rancher.localhost
+    - host: workflow.rancher.localhost
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: argocd-server
+                name: argo-server
                 port:
-                  number: 80
-  tls:
-  - hosts:
-    - argocd.rancher.localhost
+                  name: web   # or you can use number: 2746

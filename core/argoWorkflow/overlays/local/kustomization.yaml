@@ -1,0 +1,25 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+  - argo-rolebinding.yaml
+patches:
+  - target:
+      kind: Deployment
+      name: argo-server
+      namespace: argo
+    patch: |-
+      - op: replace
+        path: "/spec/template/spec/containers/0/args"
+        value:
+          - "server"
+          - "--auth-mode=server"
+          - "--secure=false"
+  - target:
+      kind: Deployment
+      name: argo-server
+      namespace: argo
+    patch: |-
+      - op: replace
+        path: "/spec/template/spec/containers/0/readinessProbe/httpGet/scheme"
+        value: "HTTP"
