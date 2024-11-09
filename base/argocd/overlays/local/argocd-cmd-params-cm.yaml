@@ -7,7 +7,7 @@ metadata:
     app.kubernetes.io/part-of: argocd
 data:
   server.insecure: "true"
-
+  admin.enabled: "false"
 #  # Repo server address. (default "argocd-repo-server:8081")
 #  repo.server: "argocd-repo-server:8081"
 #
