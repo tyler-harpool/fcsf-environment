@@ -5,4 +5,4 @@ resources:
   - traefik.yaml
 patches:
   - path: argocd-cmd-params-cm.yaml
-  - path: argo-secret.yaml
+  - path: argocd-secret.yaml
