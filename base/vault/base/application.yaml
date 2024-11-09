@@ -1,0 +1,42 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vault
+  namespace: argocd
+spec:
+  project: infrastructure
+  source:
+    repoURL: 'https://helm.releases.hashicorp.com'
+    targetRevision: 0.25.0
+    helm:
+      values: |-
+                injector:
+                  enabled: false
+                server:
+                  affinity: ""
+                  ha:
+                    enabled: true
+                    replicas: 1
+                    raft:
+                      enabled: true
+                      setNodeId: true
+                      config: |
+                        ui = true
+                        disable_mlock = true
+                        storage "raft" {
+                          path = "/vault/data"
+                          node_id = "node1"
+                        }
+                        listener "tcp" {
+                          tls_disable = 1
+                          address = "0.0.0.0:8200"
+                        }
+                        api_addr = "http://0.0.0.0:8200"
+                        cluster_addr = "https://0.0.0.0:8201"
+                        service_registration "kubernetes" {}
+    chart: vault
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: vault
+  syncPolicy:
+    automated: {}

@@ -1,0 +1,41 @@
+# apiVersion: rbac.authorization.k8s.io/v1
+# kind: ClusterRoleBinding
+# metadata:
+#   name: role-tokenreview-binding
+#   namespace: dev  
+# roleRef:  
+#   apiGroup: rbac.authorization.k8s.io
+#   kind: ClusterRole 
+#   name: system:auth-delegator
+# subjects:  
+# - kind: ServiceAccount
+#   name: vault-auth
+#   namespace: dev
+# ---
+# apiVersion: rbac.authorization.k8s.io/v1
+# kind: ClusterRoleBinding
+# metadata:
+#   name: role-tokenreview-binding
+#   namespace: perf  
+# roleRef:  
+#   apiGroup: rbac.authorization.k8s.io
+#   kind: ClusterRole 
+#   name: system:auth-delegator
+# subjects:  
+# - kind: ServiceAccount
+#   name: vault-auth
+#   namespace: perf
+# ---
+# apiVersion: rbac.authorization.k8s.io/v1
+# kind: ClusterRoleBinding
+# metadata:
+#   name: role-tokenreview-binding
+#   namespace: qa  
+# roleRef:  
+#   apiGroup: rbac.authorization.k8s.io
+#   kind: ClusterRole 
+#   name: system:auth-delegator
+# subjects:  
+# - kind: ServiceAccount
+#   name: vault-auth
+#   namespace: qa
