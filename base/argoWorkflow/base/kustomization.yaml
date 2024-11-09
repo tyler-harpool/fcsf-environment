@@ -3,7 +3,7 @@ kind: Kustomization
 namespace: argo
 resources:
   - namespace.yaml
-  - https://github.com/argoproj/argo-workflows/releases/download/v3.5.12/install.yaml
+  - https://github.com/argoproj/argo-workflows/releases/download//install.yaml
   - ingress.yaml
   - role.yaml
   # - roleBinding.yaml

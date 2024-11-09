@@ -8,7 +8,7 @@ metadata:
     traefik.ingress.kubernetes.io/router.entrypoints: web
 spec:
   rules:
-    - host: workflow.rancher.localhost     # Changed host name
+    - host: workflow.     # Changed host name
       http:
         paths:
           - path: /
@@ -20,4 +20,4 @@ spec:
                   number: 2746          # Changed port to Argo Workflows default
   # tls:
   # - hosts:
-  #   - workflow.rancher.localhost           # Changed host name
+  #   - workflow.           # Changed host name

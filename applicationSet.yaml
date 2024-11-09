@@ -1,22 +1,24 @@
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
-  name: core-infrastructure
+  name: core-applications
   namespace: argocd
 spec:
   generators:
     - git:
-        repoURL: https://github.com/your-org/gitops-repo.git
+        repoURL: https://github.com/tyler-harpool/fcsf-environment.git
         revision: HEAD
         directories:
-          - path: core/*
+          - path: base/*
   template:
     metadata:
       name: '{{path.basename}}'
+      annotations:
+        argocd.argoproj.io/sync-wave: "{{path.basename == 'argocd' && '0' || '1'}}"
     spec:
       project: default
       source:
-        repoURL: https://github.com/your-org/gitops-repo.git
+        repoURL: https://github.com/tyler-harpool/fcsf-environment.git
         targetRevision: HEAD
         path: '{{path}}'
       destination:
@@ -28,3 +30,5 @@ spec:
           selfHeal: true
         syncOptions:
           - CreateNamespace=true
+          - PrunePropagationPolicy=foreground
+          - PruneLast=true
