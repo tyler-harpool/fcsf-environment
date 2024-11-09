@@ -8,7 +8,7 @@ metadata:
     traefik.ingress.kubernetes.io/router.entrypoints: web
 spec:
   rules:
-    - host: workflow.
+    - host: workflow.rancher.localhost
       http:
         paths:
           - path: /
