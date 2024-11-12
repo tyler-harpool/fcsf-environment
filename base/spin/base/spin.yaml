@@ -1,0 +1,36 @@
+# Install Spin Operator with Helm
+helm install spin-operator \
+  --namespace spin-operator \
+  --create-namespace \
+  --version 0.4.0 \
+  --wait \
+  oci://ghcr.io/spinkube/charts/spin-operator
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: spin-operator
+  namespace: spin-operator
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: spin-operator
+  sources:
+    - repoURL: oci://ghcr.io/spinkube/charts/spin-operator
+      chart: spin-operator
+      targetRevision: 0.10.5
+      helm:
+        valuesObject:
+          webhook:
+            create: false
+          certController:
+            create: false
+          crd:
+            conversion:
+              enabled: false
+  syncPolicy:
+    syncOptions:
+    - CreateNamespace=true
+    automated:
+      prune: true
+      selfHeal: true
