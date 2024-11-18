@@ -5,7 +5,7 @@ resources:
   - namespace.yaml
   - https://raw.githubusercontent.com/argoproj/argo-cd/v2.11.3/manifests/install.yaml
   - appsets/
-  - argocd-traefik-clusterrolebinding.yaml
+  # - argocd-traefik-clusterrolebinding.yaml
 
 
 images:
