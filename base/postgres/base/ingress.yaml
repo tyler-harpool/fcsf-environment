@@ -1,0 +1,13 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: postgres-route
+  namespace: database
+spec:
+  entryPoints:
+    - postgres
+  routes:
+  - match: HostSNI(`postgres.rancher.localhost`)
+    services:
+    - name: postgres
+      port: 5432

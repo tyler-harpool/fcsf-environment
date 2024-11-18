@@ -1,0 +1,70 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kwasm-operator
+  namespace: argocd
+spec:
+  project: default
+  source:
+    chart: kwasm-operator
+    repoURL: http://kwasm.sh/kwasm-operator/
+    targetRevision: HEAD
+    helm:
+      values: |
+        kwasmOperator:
+          installerImage: ghcr.io/spinkube/containerd-shim-spin/node-installer:v0.13.1
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kwasm
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+    automated:
+      prune: true
+      selfHeal: true
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: annotate-nodes
+  namespace: kwasm
+spec:
+  template:
+    spec:
+      serviceAccountName: kwasm-node-annotator
+      containers:
+      - name: kubectl
+        image: bitnami/kubectl:latest
+        command:
+        - /bin/sh
+        - -c
+        - kubectl annotate node --all kwasm.sh/kwasm-node=true --overwrite
+      restartPolicy: OnFailure
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: node-annotator
+rules:
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get", "list", "patch"]
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kwasm-node-annotator
+  namespace: kwasm
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: node-annotator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: node-annotator
+subjects:
+- kind: ServiceAccount
+  name: kwasm-node-annotator
+  namespace: kwasm

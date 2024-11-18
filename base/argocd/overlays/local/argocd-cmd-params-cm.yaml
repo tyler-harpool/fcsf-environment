@@ -8,6 +8,7 @@ metadata:
 data:
   server.insecure: "true"
   admin.enabled: "false"
+  users.anonymous.enabled: "true"
 #  # Repo server address. (default "argocd-repo-server:8081")
 #  repo.server: "argocd-repo-server:8081"
 #

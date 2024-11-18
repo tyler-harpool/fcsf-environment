@@ -1,12 +1,52 @@
-    apiVersion: rbac.authorization.k8s.io/v1
-    kind: ClusterRoleBinding
-    metadata:
-      name: argocd-traefik-binding
-    subjects:
-      - kind: ServiceAccount
-        name: argocd-application-controller
-        namespace: argocd
-    roleRef:
-      kind: ClusterRole
-      name: argocd-traefik-role
-      apiGroup: rbac.authorization.k8s.io
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: argocd-admin-role
+  namespace: argocd
+rules:
+  # Existing Traefik permissions
+  - apiGroups: ["traefik.io"]
+    resources:
+      - "middlewaretcps"
+      - "middlewares"
+      - "ingressroutes"
+      - "ingressroutetcps"
+      - "tlsoptions"
+      - "tlsstores"
+      - "serverstransports"
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  # HPA permissions
+  - apiGroups: ["autoscaling"]
+    resources:
+      - "horizontalpodautoscalers"
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  # Core/common permissions that ArgoCD typically needs
+  - apiGroups: [""]
+    resources: ["*"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["apps"]
+    resources: ["*"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["batch"]
+    resources: ["*"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-application-controller
+    app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/component: application-controller
+  name: argocd-application-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: argocd-application-controller
+subjects:
+- kind: ServiceAccount
+  name: argocd-application-controller
+  namespace: argocd
