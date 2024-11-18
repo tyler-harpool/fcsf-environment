@@ -30,3 +30,12 @@ Vault is used for managing secrets.
 
 The kustomize-generator directory contains scripts and tools for generating Kustomize configurations.
 - `./kustomize-generator`
+
+
+## Troubleshooting
+### Stuck terminating?
+- Use with caution.
+```bash
+kubectl patch crd applications.argoproj.io -p '{"metadata":{"finalizers":[]}}' --type=merge
+kubectl delete crd applications.argoproj.io --force --grace-period=0
+```
