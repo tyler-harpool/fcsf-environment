@@ -3,5 +3,11 @@ kind: Kustomization
 namespace: argocd
 resources:
   - namespace.yaml
-  - https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+  - https://raw.githubusercontent.com/argoproj/argo-cd/v2.11.3/manifests/install.yaml
   - appsets/
+  - argocd-traefik-clusterrolebinding.yaml
+
+
+images:
+- name: quay.io/argoproj/argocd
+  newTag: v2.11.3

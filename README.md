@@ -39,3 +39,18 @@ The kustomize-generator directory contains scripts and tools for generating Kust
 kubectl patch crd applications.argoproj.io -p '{"metadata":{"finalizers":[]}}' --type=merge
 kubectl delete crd applications.argoproj.io --force --grace-period=0
 ```
+
+
+### Delete All Resources in Namespace
+# First remove any finalizers that might be blocking deletion
+kubectl patch namespace argo -p '{"metadata":{"finalizers":[]}}' --type=merge
+
+# Then delete the namespace
+kubectl delete namespace argo --force --grace-period=0
+
+# If it's still stuck, you can use this more aggressive approach
+kubectl patch namespace argo -p '{"spec":{"finalizers":[]}}' --type=merge
+kubectl delete namespace argo --force --grace-period=0
+
+# If still stuck, you can try a JSON patch
+kubectl patch namespace argo --type json -p='[{"op": "remove", "path": "/metadata/finalizers"}]'
