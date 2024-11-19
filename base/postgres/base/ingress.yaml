@@ -8,7 +8,7 @@ spec:
   entryPoints:
     - postgres
   routes:
-    - match: HostSNI(`*`)
+    - match: HostSNI(`postgres.rancher.localhost`)
       services:
         - name: postgresql-primary
           namespace: database
