@@ -20,6 +20,12 @@ spec:
         command: ['sh', '-c', '
           until nc -z vault-0.vault-internal 8200 || nc -z vault.vault.svc 8200;
           do echo "waiting for vault to listen on port 8200"; sleep 2; done']
+      - name: copy-kubectl
+        image: bitnami/kubectl:latest
+        command: ['sh', '-c', 'cp /opt/bitnami/kubectl/bin/kubectl /kubectl/kubectl && chmod +x /kubectl/kubectl']
+        volumeMounts:
+        - name: kubectl-binary
+          mountPath: /kubectl
       containers:
       - name: vault-init
         image: hashicorp/vault:1.13.3
@@ -43,12 +49,6 @@ spec:
           readOnly: true
         - name: vault-keys
           mountPath: /vault/keys
-        - name: kubectl-binary
-          mountPath: /kubectl
-      - name: kubectl-sidecar
-        image: bitnami/kubectl:latest
-        command: ['cp', '/opt/bitnami/kubectl/bin/kubectl', '/kubectl/kubectl']
-        volumeMounts:
         - name: kubectl-binary
           mountPath: /kubectl
       volumes:
