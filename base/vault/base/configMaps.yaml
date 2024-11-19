@@ -16,25 +16,39 @@ data:
 
       # Check if secrets already exist
       if ! kubectl get secret vault-token -n $KUBERNETES_NAMESPACE >/dev/null 2>&1; then
-        echo "Error: Vault is initialized but secrets are missing. Manual intervention required."
-        exit 1
+        echo "Warning: Vault is initialized but secrets are missing."
+        echo "Please enter root token:"
+        read ROOT_TOKEN
+
+        echo "Creating vault-token secret..."
+        kubectl -n $KUBERNETES_NAMESPACE create secret generic vault-token \
+          --from-literal=token=$ROOT_TOKEN \
+          --dry-run=client -o yaml | kubectl apply -f -
+
+        echo "Please enter unseal keys (one per line, empty line to finish):"
+        UNSEAL_KEYS=""
+        while IFS= read -r key; do
+          [ -z "$key" ] && break
+          UNSEAL_KEYS="$UNSEAL_KEYS $key"
+        done
+
+        echo "Creating vault-unseal-keys secret..."
+        kubectl -n $KUBERNETES_NAMESPACE create secret generic vault-unseal-keys \
+          --from-literal=keys="$UNSEAL_KEYS" \
+          --dry-run=client -o yaml | kubectl apply -f -
       else
-        echo "Existing secrets found. Nothing to do."
-        # Keep container running for debugging
-        tail -f /dev/null
+        echo "Existing secrets found."
       fi
     else
       echo "Initializing Vault..."
       INIT_OUTPUT=$(vault operator init)
       echo "$INIT_OUTPUT" > /vault/keys/init-output.json
 
-      # Extract and store root token
       ROOT_TOKEN=$(echo "$INIT_OUTPUT" | grep 'Initial Root Token:' | awk '{print $NF}')
       kubectl -n $KUBERNETES_NAMESPACE create secret generic vault-token \
         --from-literal=token=$ROOT_TOKEN \
         --dry-run=client -o yaml | kubectl apply -f -
 
-      # Extract and store unseal keys
       UNSEAL_KEYS=$(echo "$INIT_OUTPUT" | grep 'Unseal Key' | awk '{print $NF}' | tr '\n' ' ')
       kubectl -n $KUBERNETES_NAMESPACE create secret generic vault-unseal-keys \
         --from-literal=keys="$UNSEAL_KEYS" \

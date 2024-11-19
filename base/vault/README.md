@@ -1,3 +1,13 @@
+## Add vault token manually
+```bash
+# Create vault-token secret
+kubectl create secret generic vault-token -n vault \
+  --from-literal=token=YOUR_ROOT_TOKEN
+
+# Create vault-unseal-keys secret
+kubectl create secret generic vault-unseal-keys -n vault \
+  --from-literal=keys="KEY1 KEY2 KEY3"
+```
 
 ## Shell into vault-0 and run the following commands
 ```bash
@@ -23,9 +33,7 @@ vault kv put kv-v2/argocd password="123456"
 ```
 ### Create a read policy for argo data path
 ```bash
-vault policy write argocd - <<EOF 
-path "kv-v2/data/argocd" { capabilities = ["read"] } 
+vault policy write argocd - <<EOF
+path "kv-v2/data/argocd" { capabilities = ["read"] }
 EOF
 ```
-
-
