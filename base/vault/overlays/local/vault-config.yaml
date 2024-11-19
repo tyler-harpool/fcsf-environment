@@ -1,0 +1,130 @@
+# First, we create a dedicated ServiceAccount for Vault configuration
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vault-auth
+  namespace: vault
+
+---
+# Create a ClusterRole with necessary permissions
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: vault-auth
+rules:
+- apiGroups: [""]
+  resources:
+  - serviceaccounts
+  - serviceaccounts/token
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups: [""]
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+
+---
+# Bind the role to the ServiceAccount
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: vault-auth
+subjects:
+- kind: ServiceAccount
+  name: vault-auth
+  namespace: vault
+roleRef:
+  kind: ClusterRole
+  name: vault-auth
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# ConfigMap containing the policy and role definitions
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-config
+  namespace: vault
+data:
+  policies.hcl: |
+    path "kv/*" {
+      capabilities = ["read", "list", "create", "update", "delete"]
+    }
+    path "auth/*" {
+      capabilities = ["read", "list", "create", "update", "delete"]
+    }
+    path "sys/*" {
+      capabilities = ["read", "list", "create", "update", "delete"]
+    }
+
+---
+# Job to configure Vault using Kubernetes auth
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: vault-config
+  namespace: vault
+spec:
+  template:
+    spec:
+      serviceAccountName: vault-auth
+      containers:
+      - name: vault-config
+        image: hashicorp/vault:1.13.3
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          # Wait for Vault to be ready
+          until vault status; do
+            echo "Waiting for Vault to be ready..."
+            sleep 5
+          done
+
+          # Enable and configure Kubernetes auth
+          vault auth enable kubernetes || true
+
+          # Configure Kubernetes auth
+          vault write auth/kubernetes/config \
+            kubernetes_host="https://kubernetes.default.svc" \
+            token_reviewer_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
+            kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
+            issuer="https://kubernetes.default.svc.cluster.local"
+
+          # Create policies
+          vault policy write oauth-policy - <<EOF
+          path "kv/data/oauth2-proxy/*" {
+            capabilities = ["read", "list"]
+          }
+          path "kv/metadata/oauth2-proxy/*" {
+            capabilities = ["list"]
+          }
+          EOF
+
+          # Create roles
+          vault write auth/kubernetes/role/oauth2-proxy \
+            bound_service_account_names=oauth2-proxy \
+            bound_service_account_namespaces=oauth \
+            policies=oauth-policy \
+            ttl=1h
+
+          # Enable secrets engines
+          vault secrets enable -path=kv -version=2 kv || true
+        env:
+        - name: VAULT_ADDR
+          value: "http://vault.vault.svc:8200"
+        volumeMounts:
+        - name: vault-config
+          mountPath: /vault/configs
+      volumes:
+      - name: vault-config
+        configMap:
+          name: vault-config
+      restartPolicy: OnFailure
