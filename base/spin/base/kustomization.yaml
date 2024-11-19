@@ -6,3 +6,4 @@ resources:
   - https://github.com/spinkube/spin-operator/releases/download/v0.4.0/spin-operator.crds.yaml
   - https://github.com/spinkube/spin-operator/releases/download/v0.1.0/spin-operator.runtime-class.yaml
   - https://github.com/spinkube/spin-operator/releases/download/v0.1.0/spin-operator.shim-executor.yaml
+  - application.yaml
