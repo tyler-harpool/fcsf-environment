@@ -10,6 +10,6 @@ spec:
   routes:
     - match: HostSNI(`postgres.rancher.localhost`)
       services:
-        - name: postgresql-primary
+        - name: postgresql
           namespace: database
           port: 5432

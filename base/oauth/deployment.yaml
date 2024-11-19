@@ -1,0 +1,155 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: oauth
+---
+# Create a secret for OAuth2 proxy
+apiVersion: v1
+kind: Secret
+metadata:
+  name: oauth2-proxy-secrets
+  namespace: oauth
+type: Opaque
+stringData:
+  cookie-secret: "123456789012345a"  # Must be 16, 24, or 32 bytes
+  client-secret: "your-client-secret"
+  client-id: "your-client-id"
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: oauth2-proxy
+  namespace: oauth
+spec:
+  forwardAuth:
+    address: http://oauth2-proxy:4180
+    authResponseHeaders:
+      - Authorization
+    trustForwardHeader: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: oauth2-proxy
+  namespace: oauth
+spec:
+  ports:
+    - port: 4180
+      targetPort: 4180
+  selector:
+    app: oauth2-proxy
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oauth2-proxy
+  namespace: oauth
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: oauth2-proxy
+  template:
+    metadata:
+      labels:
+        app: oauth2-proxy
+    spec:
+      containers:
+        - name: oauth2-proxy
+          image: quay.io/oauth2-proxy/oauth2-proxy:latest
+          args:
+            - --http-address=0.0.0.0:4180
+            - --upstream=http://echo-server:80
+          env:
+            - name: OAUTH2_PROXY_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: oauth2-proxy-secrets
+                  key: client-id
+            - name: OAUTH2_PROXY_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: oauth2-proxy-secrets
+                  key: client-secret
+            - name: OAUTH2_PROXY_COOKIE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: oauth2-proxy-secrets
+                  key: cookie-secret
+            - name: OAUTH2_PROXY_CODE_CHALLENGE_METHOD
+              value: S256
+            - name: OAUTH2_PROXY_COOKIE_SECURE
+              value: "false"
+            - name: OAUTH2_PROXY_EMAIL_DOMAINS
+              value: '*'
+            - name: OAUTH2_PROXY_HTTP_ADDRESS
+              value: http://0.0.0.0:4180
+            - name: OAUTH2_PROXY_INSECURE_OIDC_ALLOW_UNVERIFIED_EMAIL
+              value: "true"
+            - name: OAUTH2_PROXY_OIDC_ISSUER_URL
+              value: https://keycloak.rancher.localhost/realms/master
+            - name: OAUTH2_PROXY_PROVIDER
+              value: oidc
+            - name: OAUTH2_PROXY_REDIRECT_URL
+              value: http://localhost:8088/oauth2/callback
+            - name: OAUTH2_PROXY_REVERSE_PROXY
+              value: "true"
+            - name: OAUTH2_PROXY_SET_AUTHORIZATION_HEADER
+              value: "true"
+            - name: OAUTH2_PROXY_SET_XAUTHREQUEST
+              value: "true"
+            - name: OAUTH2_PROXY_UPSTREAM
+              value: http://echo-server:80
+            - name: OUATH2_PROXY_SHOW_DEBUG_ON_ERROR
+              value: "true"
+---
+# Echo Server Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo-server
+  namespace: oauth
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: echo-server
+  template:
+    metadata:
+      labels:
+        app: echo-server
+    spec:
+      containers:
+        - name: echo-server
+          image: ealen/echo-server
+---
+# Echo Server Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: echo-server
+  namespace: oauth
+spec:
+  ports:
+    - port: 80
+      targetPort: 80
+  selector:
+    app: echo-server
+---
+# IngressRoute for OAuth
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: oauth2-proxy
+  namespace: oauth
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: PathPrefix(`/oauth2`)
+      kind: Rule
+      services:
+        - name: oauth2-proxy
+          port: 4180
+      middlewares:
+        - name: oauth2-proxy
