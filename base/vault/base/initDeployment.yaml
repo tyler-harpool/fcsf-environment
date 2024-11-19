@@ -17,9 +17,7 @@ spec:
       initContainers:
       - name: wait-for-vault
         image: busybox
-        command: ['sh', '-c', '
-          until nc -z vault-0.vault-internal 8200 || nc -z vault.vault.svc 8200;
-          do echo "waiting for vault to listen on port 8200"; sleep 2; done']
+        command: ['sh', '-c', 'cp /bin/vault /vault-binary/vault && chmod +x /vault-binary/vault']
       - name: copy-vault-binary  # Add init container to copy vault binary
         image: hashicorp/vault:1.13.3
         command: ['sh', '-c', 'cp /bin/vault /vault-binary/vault']
