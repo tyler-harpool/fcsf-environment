@@ -16,20 +16,19 @@ spec:
       serviceAccountName: vault-auth
       initContainers:
       - name: wait-for-vault-init
-        image: busybox:1.36
-        imagePullPolicy: IfNotPresent
-        command: ['sh', '-c', '
-          until wget -q --spider http://vault-0.vault-internal:8200/v1/sys/health ||
-                wget -q --spider http://vault.vault.svc:8200/v1/sys/health;
-          do echo "waiting for vault initialization"; sleep 5; done &&
-          until [ "$(wget -qO- http://vault.vault.svc:8200/v1/sys/seal-status | grep -o \"sealed\":true | wc -l)" = "0" ];
-          do echo "waiting for vault unseal"; sleep 5; done']
+        image: bitnami/kubectl:latest
+        command:
+        - /bin/sh
+        - -c
+        - |
+          until kubectl get secret vault-token -n vault --no-headers; do
+            echo "Waiting for vault-token secret..."
+            sleep 5
+          done
+          echo "vault-token secret found!"
       containers:
       - name: vault-config
         image: hashicorp/vault:1.13.3
-        securityContext:
-          runAsUser: 0
-          runAsGroup: 0
         command: ["/bin/sh"]
         args: ["/scripts/configure.sh"]
         env:
