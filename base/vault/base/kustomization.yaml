@@ -10,7 +10,7 @@ resources:
 helmCharts:
 - name: vault
   repo: https://helm.releases.hashicorp.com
-  version: 1.18.1
+  version: 0.25.0
   releaseName: vault
   namespace: vault
   valuesInline:
