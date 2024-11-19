@@ -4,5 +4,6 @@ metadata:
   name: hello-spin
   namespace: default
 spec:
+  replicas: 1  # Added replicas count
   image: ghcr.io/spinkube/hello-rust-spin:v1.0.0
   executor: containerd-shim-spin  # Correct format
