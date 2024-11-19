@@ -4,7 +4,6 @@ kind: Kustomization
 namespace: vault
 
 resources:
-- ../../base
 - ingress.yaml
 
 helmCharts:
@@ -15,8 +14,11 @@ helmCharts:
   namespace: vault
   includeCRDs: true
   valuesInline:
+    injector:
+      enabled: false
     server:
       ha:
+        enabled: true
         replicas: 1
       resources:
         requests:
