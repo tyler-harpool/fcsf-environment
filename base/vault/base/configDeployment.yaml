@@ -1,45 +1,47 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: vault-config
+  name: vault-init
   namespace: vault
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: vault-config
+      app: vault-init
   template:
     metadata:
       labels:
-        app: vault-config
+        app: vault-init
     spec:
       serviceAccountName: vault-auth
       initContainers:
-      - name: wait-for-vault-init
-        image: busybox
-        command: ['sh', '-c', 'until kubectl get secret vault-token -n vault; do echo waiting for vault initialization; sleep 2; done;']
       - name: wait-for-vault
         image: busybox
-        command: ['sh', '-c', 'until wget -q --spider http://vault.vault.svc:8200/v1/sys/health; do echo waiting for vault; sleep 2; done;']
+        command: ['sh', '-c', '
+          until wget -T 5 -q --spider http://vault-0.vault-internal:8200/v1/sys/health || wget -T 5 -q --spider http://vault.vault.svc:8200/v1/sys/health;
+          do echo "waiting for vault"; sleep 2; done']
       containers:
-      - name: vault-config
+      - name: vault-init
         image: hashicorp/vault:1.13.3
         command: ["/bin/sh"]
-        args: ["/scripts/configure.sh"]
+        args: ["/scripts/init.sh"]
         env:
         - name: VAULT_ADDR
           value: "http://vault.vault.svc:8200"
-        - name: VAULT_TOKEN
+        - name: KUBERNETES_NAMESPACE
           valueFrom:
-            secretKeyRef:
-              name: vault-token
-              key: token
+            fieldRef:
+              fieldPath: metadata.namespace
         volumeMounts:
-        - name: config-script
+        - name: init-script
           mountPath: /scripts
           readOnly: true
+        - name: vault-keys
+          mountPath: /vault/keys
       volumes:
-      - name: config-script
+      - name: init-script
         configMap:
-          name: vault-config-script
+          name: vault-init-script
           defaultMode: 0755
+      - name: vault-keys
+        emptyDir: {}
