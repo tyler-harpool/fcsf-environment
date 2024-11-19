@@ -19,8 +19,8 @@ helmCharts:
     server:
       affinity: ""
       ha:
-        enabled: false
-        replicas: 1
+        enabled: true
+        replicas: 2
         raft:
           enabled: true
           setNodeId: true
