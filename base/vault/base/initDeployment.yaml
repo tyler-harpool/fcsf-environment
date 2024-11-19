@@ -22,7 +22,7 @@ spec:
             do echo "waiting for vault to listen on port 8200"; sleep 2; done']
       containers:
       - name: vault-init
-        image: hashicorp/vault:1.13.3
+        image: bitnami/kubectl:latest
         command: ["/bin/sh"]
         args: ["/scripts/init.sh"]
         env:
