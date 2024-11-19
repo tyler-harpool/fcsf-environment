@@ -15,7 +15,7 @@ helmCharts:
   includeCRDs: true
   valuesInline:
     webhook:
-      create: false
+      create: true
     certController:
       create: false
     crd:
