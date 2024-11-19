@@ -1,20 +1,13 @@
-apiVersion: networking.k8s.io/v1
-kind: Ingress
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRouteTCP
 metadata:
-  name: postgres-ingress
+  name: postgres-tcp
   namespace: database
-  annotations:
-    ingress.kubernetes.io/ssl-redirect: "false"
-    traefik.ingress.kubernetes.io/router.entrypoints: postgres
 spec:
-  rules:
-    - host: postgres.rancher.localhost
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: postgres
-                port:
-                  number: 5432
+  entryPoints:
+    - postgres
+  routes:
+    - match: HostSNI(`postgres.rancher.localhost`)
+      services:
+        - name: postgres
+          port: 5432
