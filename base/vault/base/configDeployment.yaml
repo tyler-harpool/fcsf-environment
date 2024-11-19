@@ -18,8 +18,9 @@ spec:
       - name: wait-for-vault-init
         image: busybox
         command: ['sh', '-c', '
-          until kubectl get secret vault-token -n vault && vault status | grep "Sealed.*false";
-          do echo "waiting for vault initialization and unseal"; sleep 5; done']
+          until wget -q --spider -T 5 http://vault.vault.svc:8200/v1/sys/health &&
+          wget -q --spider -T 5 http://vault.vault.svc:8200/v1/sys/seal-status;
+          do echo "waiting for unsealed vault"; sleep 5; done']
       containers:
       - name: vault-config
         image: hashicorp/vault:1.13.3
