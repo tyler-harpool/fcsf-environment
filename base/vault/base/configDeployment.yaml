@@ -21,11 +21,12 @@ spec:
         - /bin/sh
         - -c
         - |
-          until kubectl get secret vault-token -n vault --no-headers; do
-            echo "Waiting for vault-token secret..."
+          until kubectl get secret vault-token -n vault --no-headers && \
+                kubectl get secret vault-unseal-keys -n vault --no-headers; do
+            echo "Waiting for vault secrets..."
             sleep 5
           done
-          echo "vault-token secret found!"
+          echo "Vault secrets found!"
       containers:
       - name: vault-config
         image: hashicorp/vault:1.13.3
