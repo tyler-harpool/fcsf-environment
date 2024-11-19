@@ -1,0 +1,89 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-init-script
+  namespace: vault
+data:
+  init.sh: |
+    #!/bin/sh
+    set -e
+
+    # Check if Vault is initialized
+    if ! vault status > /dev/null 2>&1; then
+      echo "Initializing Vault..."
+      INIT_OUTPUT=$(vault operator init)
+
+      # Extract root token and create secret
+      ROOT_TOKEN=$(echo "$INIT_OUTPUT" | grep 'Initial Root Token:' | awk '{print $NF}')
+      kubectl -n vault create secret generic vault-token \
+        --from-literal=token=$ROOT_TOKEN \
+        --dry-run=client -o yaml | kubectl apply -f -
+
+      # Save unseal keys
+      UNSEAL_KEYS=$(echo "$INIT_OUTPUT" | grep 'Unseal Key' | awk '{print $NF}' | tr '\n' ' ')
+      kubectl -n vault create secret generic vault-unseal-keys \
+        --from-literal=keys="$UNSEAL_KEYS" \
+        --dry-run=client -o yaml | kubectl apply -f -
+    fi
+
+    # Get unseal keys and unseal all pods
+    UNSEAL_KEYS=$(kubectl get secret -n vault vault-unseal-keys -o jsonpath='{.data.keys}' | base64 -d)
+    for i in 0 1 2; do
+      echo "Unsealing vault-$i..."
+      export VAULT_ADDR="http://vault-$i.vault-internal:8200"
+      echo "$UNSEAL_KEYS" | tr ' ' '\n' | head -n 3 | while read key; do
+        vault operator unseal $key || true
+      done
+    done
+
+    # Monitor and maintain unseal status
+    while true; do
+      sleep 30
+      for i in 0 1 2; do
+        export VAULT_ADDR="http://vault-$i.vault-internal:8200"
+        if vault status 2>/dev/null | grep -q 'Sealed.*true'; then
+          echo "vault-$i is sealed, unsealing..."
+          echo "$UNSEAL_KEYS" | tr ' ' '\n' | head -n 3 | while read key; do
+            vault operator unseal $key || true
+          done
+        fi
+      done
+    done
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-config-script
+  namespace: vault
+data:
+  configure.sh: |
+    #!/bin/sh
+    set -e
+
+    vault auth enable kubernetes || true
+
+    vault write auth/kubernetes/config \
+      kubernetes_host="https://kubernetes.default.svc" \
+      token_reviewer_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
+      kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
+      issuer="https://kubernetes.default.svc.cluster.local"
+
+    vault policy write oauth-policy - <<EOF
+    path "kv/data/oauth2-proxy/*" {
+      capabilities = ["read", "list"]
+    }
+    path "kv/metadata/oauth2-proxy/*" {
+      capabilities = ["list"]
+    }
+    EOF
+
+    vault write auth/kubernetes/role/oauth2-proxy \
+      bound_service_account_names=oauth2-proxy \
+      bound_service_account_namespaces=oauth \
+      policies=oauth-policy \
+      ttl=1h
+
+    vault secrets enable -path=kv -version=2 kv || true
+
+    # Keep container running
+    tail -f /dev/null
