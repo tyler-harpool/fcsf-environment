@@ -9,17 +9,26 @@ data:
     set -e
 
     echo "Checking Vault status..."
-    vault status || echo "Status command failed with: $?"
+    if vault status | grep -q "Initialized.*true"; then
+      echo "Vault is already initialized"
+      if vault status | grep -q "Sealed.*true"; then
+        echo "Vault is sealed. Attempting to unseal..."
+        if ! kubectl get secret -n $KUBERNETES_NAMESPACE vault-unseal-keys >/dev/null 2>&1; then
+          echo "Error: Vault is sealed but unseal keys secret is missing. Manual intervention required."
+          echo "Please provide unseal keys by creating vault-unseal-keys secret"
+          exit 1
+        fi
 
-    echo "Attempting to check initialization directly..."
-    curl -k http://vault.vault.svc:8200/v1/sys/init || echo "Init check failed with: $?"
-
-    echo "Attempting to check seal status..."
-    curl -k http://vault.vault.svc:8200/v1/sys/seal-status || echo "Seal check failed with: $?"
-
-    if ! vault status > /dev/null 2>&1; then
-      echo "Initializing Vault..."
-      # Initialize with 5 key shares and 3 key threshold
+        # Get unseal keys and unseal vault
+        UNSEAL_KEYS=$(kubectl get secret -n $KUBERNETES_NAMESPACE vault-unseal-keys -o jsonpath='{.data.keys}' | base64 -d)
+        echo "Got unseal keys, attempting to unseal..."
+        echo "$UNSEAL_KEYS" | tr ' ' '\n' | head -n 3 | while read key; do
+          echo "Applying unseal key..."
+          vault operator unseal $key
+        done
+      fi
+    else
+      echo "Vault is not initialized. Initializing..."
       INIT_OUTPUT=$(vault operator init -key-shares=5 -key-threshold=3)
 
       # Extract and store root token
@@ -35,9 +44,10 @@ data:
       kubectl -n $KUBERNETES_NAMESPACE create secret generic vault-unseal-keys \
         --from-literal=keys="$UNSEAL_KEYS" \
         --dry-run=client -o yaml | kubectl apply -f -
-    else
-      echo "Vault is already initialized"
     fi
+
+    echo "Final vault status:"
+    vault status
 
     # Keep the pod running for debugging
     tail -f /dev/null
