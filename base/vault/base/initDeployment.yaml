@@ -22,13 +22,19 @@ spec:
           do echo "waiting for vault to listen on port 8200"; sleep 2; done']
       - name: copy-vault-binary
         image: hashicorp/vault:1.13.3
-        command: ['sh', '-c', 'cp /bin/vault /vault-binary/vault && chmod +x /vault-binary/vault']
+        command: ['sh', '-c', '
+          cp /bin/vault /vault-binary/vault &&
+          chmod 755 /vault-binary/vault &&
+          chown 1000:1000 /vault-binary/vault']
         volumeMounts:
         - name: vault-binary
           mountPath: /vault-binary
       containers:
       - name: vault-init
         image: bitnami/kubectl:latest
+        securityContext:
+          runAsUser: 1000
+          runAsGroup: 1000
         command: ["/bin/sh"]
         args: ["/scripts/init.sh"]
         env:
@@ -54,4 +60,5 @@ spec:
       - name: vault-keys
         emptyDir: {}
       - name: vault-binary
-        emptyDir: {}
+        emptyDir:
+          medium: Memory
