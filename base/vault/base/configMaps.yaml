@@ -77,14 +77,24 @@ data:
     #!/bin/sh
     set -e
 
+    echo "Waiting for Vault to be ready..."
+    until vault status; do
+      sleep 5
+    done
+
+    echo "Configuring Vault..."
+
+    echo "Enabling kubernetes auth..."
     vault auth enable kubernetes || true
 
+    echo "Configuring kubernetes auth..."
     vault write auth/kubernetes/config \
       kubernetes_host="https://kubernetes.default.svc" \
       token_reviewer_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
       kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
       issuer="https://kubernetes.default.svc.cluster.local"
 
+    echo "Writing oauth policy..."
     vault policy write oauth-policy - <<EOF
     path "kv/data/oauth2-proxy/*" {
       capabilities = ["read", "list"]
@@ -94,13 +104,17 @@ data:
     }
     EOF
 
+    echo "Creating oauth2-proxy role..."
     vault write auth/kubernetes/role/oauth2-proxy \
       bound_service_account_names=oauth2-proxy \
       bound_service_account_namespaces=oauth \
       policies=oauth-policy \
       ttl=1h
 
+    echo "Enabling KV secrets engine..."
     vault secrets enable -path=kv -version=2 kv || true
 
-    # Keep container running
+    echo "Configuration complete!"
+
+    # Keep container running for debugging
     tail -f /dev/null
