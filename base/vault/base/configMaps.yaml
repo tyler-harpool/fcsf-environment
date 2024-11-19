@@ -48,7 +48,46 @@ data:
           done
         fi
       done
-    done
+    doneapiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: vault-init-script
+      namespace: vault
+    data:
+      init.sh: |
+        #!/bin/sh
+        set -e
+
+        echo "Checking Vault status..."
+
+        # Initialize vault and capture output
+        if ! vault status > /dev/null 2>&1; then
+          echo "Initializing Vault..."
+          INIT_OUTPUT=$(vault operator init)
+          echo "Vault initialized! Saving keys..."
+
+          # Save the full output for reference
+          echo "$INIT_OUTPUT" > /vault/keys/init-output.json
+
+          # Extract and store root token
+          ROOT_TOKEN=$(echo "$INIT_OUTPUT" | grep 'Initial Root Token:' | awk '{print $NF}')
+          echo "Creating vault-token secret..."
+          kubectl -n vault create secret generic vault-token \
+            --from-literal=token=$ROOT_TOKEN \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          # Extract and store unseal keys
+          echo "Creating vault-unseal-keys secret..."
+          UNSEAL_KEYS=$(echo "$INIT_OUTPUT" | grep 'Unseal Key' | awk '{print $NF}' | tr '\n' ' ')
+          kubectl -n vault create secret generic vault-unseal-keys \
+            --from-literal=keys="$UNSEAL_KEYS" \
+            --dry-run=client -o yaml | kubectl apply -f -
+        else
+          echo "Vault is already initialized"
+        fi
+
+        # Keep the pod running for debugging
+        tail -f /dev/null
 ---
 apiVersion: v1
 kind: ConfigMap
