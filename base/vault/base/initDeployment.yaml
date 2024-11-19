@@ -17,7 +17,9 @@ spec:
       initContainers:
       - name: wait-for-vault
         image: busybox
-        command: ['sh', '-c', 'until wget -q --spider http://vault-0.vault-internal:8200/v1/sys/health || wget -q --spider http://vault.vault.svc:8200/v1/sys/health; do echo waiting for vault; sleep 2; done;']
+        command: ['sh', '-c', '
+          until wget -T 5 -q --spider http://vault-0.vault-internal:8200/v1/sys/health || wget -T 5 -q --spider http://vault.vault.svc:8200/v1/sys/health;
+          do echo "waiting for vault"; sleep 2; done']
       containers:
       - name: vault-init
         image: hashicorp/vault:1.13.3
@@ -26,12 +28,20 @@ spec:
         env:
         - name: VAULT_ADDR
           value: "http://vault.vault.svc:8200"
+        - name: KUBERNETES_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
         volumeMounts:
         - name: init-script
           mountPath: /scripts
           readOnly: true
+        - name: vault-keys
+          mountPath: /vault/keys
       volumes:
       - name: init-script
         configMap:
           name: vault-init-script
           defaultMode: 0755
+      - name: vault-keys
+        emptyDir: {}
