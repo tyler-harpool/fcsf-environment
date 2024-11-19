@@ -18,9 +18,11 @@ spec:
       - name: wait-for-vault-init
         image: busybox
         command: ['sh', '-c', '
-          until wget -q --spider -T 5 http://vault.vault.svc:8200/v1/sys/health &&
-          wget -q --spider -T 5 http://vault.vault.svc:8200/v1/sys/seal-status;
-          do echo "waiting for unsealed vault"; sleep 5; done']
+          until wget -q --spider http://vault-0.vault-internal:8200/v1/sys/health ||
+                wget -q --spider http://vault.vault.svc:8200/v1/sys/health;
+          do echo "waiting for vault initialization"; sleep 5; done &&
+          until [ "$(wget -qO- http://vault.vault.svc:8200/v1/sys/seal-status | grep -o \"sealed\":true | wc -l)" = "0" ];
+          do echo "waiting for vault unseal"; sleep 5; done']
       containers:
       - name: vault-config
         image: hashicorp/vault:1.13.3
