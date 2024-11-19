@@ -4,7 +4,7 @@ namespace: argocd
 resources:
   - ../../base
   - traefik.yaml
-  - configmap.yaml
+  - configMap.yaml
 patches:
   - path: argocd-cmd-params-cm.yaml
   - target:
