@@ -13,7 +13,7 @@ spec:
       labels:
         app: vault-init
     spec:
-      serviceAccountName: vault-init
+      serviceAccountName: vault-auth
       initContainers:
       - name: wait-for-vault
         image: busybox
