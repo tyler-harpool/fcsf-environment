@@ -10,5 +10,4 @@ spec:
     - match: HostSNI(`postgres.rancher.localhost`)
       services:
         - name: postgres
-          namespace: database
           port: 5432
