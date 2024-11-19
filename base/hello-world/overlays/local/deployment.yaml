@@ -2,7 +2,7 @@ apiVersion: core.spinoperator.dev/v1alpha1
 kind: SpinApp
 metadata:
   name: hello-spin
-  namespace: spin-system
+  namespace: default
 spec:
   image: ghcr.io/spinkube/hello-rust-spin:v1.0.0
   executor:
