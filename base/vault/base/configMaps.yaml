@@ -1,60 +1,128 @@
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: v1
+kind: ConfigMap
 metadata:
-  name: vault-init
+  name: vault-init-script
   namespace: vault
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: vault-init
-  template:
+data:
+  init.sh: |
+    #!/bin/sh
+    set -e
+
+    # Check if Vault is initialized
+    if ! vault status > /dev/null 2>&1; then
+      echo "Initializing Vault..."
+      INIT_OUTPUT=$(vault operator init)
+
+      # Extract root token and create secret
+      ROOT_TOKEN=$(echo "$INIT_OUTPUT" | grep 'Initial Root Token:' | awk '{print $NF}')
+      kubectl -n vault create secret generic vault-token \
+        --from-literal=token=$ROOT_TOKEN \
+        --dry-run=client -o yaml | kubectl apply -f -
+
+      # Save unseal keys
+      UNSEAL_KEYS=$(echo "$INIT_OUTPUT" | grep 'Unseal Key' | awk '{print $NF}' | tr '\n' ' ')
+      kubectl -n vault create secret generic vault-unseal-keys \
+        --from-literal=keys="$UNSEAL_KEYS" \
+        --dry-run=client -o yaml | kubectl apply -f -
+    fi
+
+    # Get unseal keys and unseal all pods
+    UNSEAL_KEYS=$(kubectl get secret -n vault vault-unseal-keys -o jsonpath='{.data.keys}' | base64 -d)
+    for i in 0 1 2; do
+      echo "Unsealing vault-$i..."
+      export VAULT_ADDR="http://vault-$i.vault-internal:8200"
+      echo "$UNSEAL_KEYS" | tr ' ' '\n' | head -n 3 | while read key; do
+        vault operator unseal $key || true
+      done
+    done
+
+    # Monitor and maintain unseal status
+    while true; do
+      sleep 30
+      for i in 0 1 2; do
+        export VAULT_ADDR="http://vault-$i.vault-internal:8200"
+        if vault status 2>/dev/null | grep -q 'Sealed.*true'; then
+          echo "vault-$i is sealed, unsealing..."
+          echo "$UNSEAL_KEYS" | tr ' ' '\n' | head -n 3 | while read key; do
+            vault operator unseal $key || true
+          done
+        fi
+      done
+    doneapiVersion: v1
+    kind: ConfigMap
     metadata:
-      labels:
-        app: vault-init
-    spec:
-      serviceAccountName: vault-auth
-      initContainers:
-      - name: wait-for-vault
-        image: busybox
-        command: ['sh', '-c', '
-          until nc -z vault-0.vault-internal 8200 || nc -z vault.vault.svc 8200;
-          do echo "waiting for vault to listen on port 8200"; sleep 2; done']
-      containers:
-      - name: vault-init
-        image: hashicorp/vault:1.13.3
-        command: ["/bin/sh"]
-        args: ["/scripts/init.sh"]
-        env:
-        - name: VAULT_ADDR
-          value: "http://vault.vault.svc:8200"
-        - name: KUBERNETES_NAMESPACE
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.namespace
-        - name: PATH
-          value: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/kubectl"
-        volumeMounts:
-        - name: init-script
-          mountPath: /scripts
-          readOnly: true
-        - name: vault-keys
-          mountPath: /vault/keys
-        - name: kubectl-binary
-          mountPath: /kubectl
-      - name: kubectl-sidecar
-        image: bitnami/kubectl:latest
-        command: ['cp', '/opt/bitnami/kubectl/bin/kubectl', '/kubectl/kubectl']
-        volumeMounts:
-        - name: kubectl-binary
-          mountPath: /kubectl
-      volumes:
-      - name: init-script
-        configMap:
-          name: vault-init-script
-          defaultMode: 0755
-      - name: vault-keys
-        emptyDir: {}
-      - name: kubectl-binary
-        emptyDir:
-          medium: Memory
+      name: vault-init-script
+      namespace: vault
+    data:
+      init.sh: |
+        #!/bin/sh
+        set -e
+
+        echo "Checking Vault status..."
+
+        # Initialize vault and capture output
+        if ! vault status > /dev/null 2>&1; then
+          echo "Initializing Vault..."
+          INIT_OUTPUT=$(vault operator init)
+          echo "Vault initialized! Saving keys..."
+
+          # Save the full output for reference
+          echo "$INIT_OUTPUT" > /vault/keys/init-output.json
+
+          # Extract and store root token
+          ROOT_TOKEN=$(echo "$INIT_OUTPUT" | grep 'Initial Root Token:' | awk '{print $NF}')
+          echo "Creating vault-token secret..."
+          kubectl -n vault create secret generic vault-token \
+            --from-literal=token=$ROOT_TOKEN \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          # Extract and store unseal keys
+          echo "Creating vault-unseal-keys secret..."
+          UNSEAL_KEYS=$(echo "$INIT_OUTPUT" | grep 'Unseal Key' | awk '{print $NF}' | tr '\n' ' ')
+          kubectl -n vault create secret generic vault-unseal-keys \
+            --from-literal=keys="$UNSEAL_KEYS" \
+            --dry-run=client -o yaml | kubectl apply -f -
+        else
+          echo "Vault is already initialized"
+        fi
+
+        # Keep the pod running for debugging
+        tail -f /dev/null
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-config-script
+  namespace: vault
+data:
+  configure.sh: |
+    #!/bin/sh
+    set -e
+
+    vault auth enable kubernetes || true
+
+    vault write auth/kubernetes/config \
+      kubernetes_host="https://kubernetes.default.svc" \
+      token_reviewer_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
+      kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
+      issuer="https://kubernetes.default.svc.cluster.local"
+
+    vault policy write oauth-policy - <<EOF
+    path "kv/data/oauth2-proxy/*" {
+      capabilities = ["read", "list"]
+    }
+    path "kv/metadata/oauth2-proxy/*" {
+      capabilities = ["list"]
+    }
+    EOF
+
+    vault write auth/kubernetes/role/oauth2-proxy \
+      bound_service_account_names=oauth2-proxy \
+      bound_service_account_namespaces=oauth \
+      policies=oauth-policy \
+      ttl=1h
+
+    vault secrets enable -path=kv -version=2 kv || true
+
+    # Keep container running
+    tail -f /dev/null
