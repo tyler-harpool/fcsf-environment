@@ -1,15 +1,16 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
+namespace: vault
+
 resources:
 - ../../base
-- ingress.yaml
 
 patches:
-- patch: |-
-    - op: add
-      path: /spec/rules/0/host
-      value: vault.rancher.localhost
-  target:
+- target:
     kind: Ingress
     name: vault-ingress
+  patch: |-
+    - op: replace
+      path: /spec/rules/0/host
+      value: vault.rancher.localhost
