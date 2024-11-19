@@ -1,4 +1,4 @@
-
+# base/vault/base/resources/config-job.yaml
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -14,11 +14,8 @@ spec:
         command: ["/bin/sh", "-c"]
         args:
         - |
-          # Wait for Vault to be ready
-          until vault status; do
-            echo "Waiting for Vault to be ready..."
-            sleep 5
-          done
+          # Login using root token
+          vault login $VAULT_TOKEN
 
           # Enable and configure Kubernetes auth
           vault auth enable kubernetes || true
@@ -52,4 +49,20 @@ spec:
         env:
         - name: VAULT_ADDR
           value: "http://vault.vault.svc:8200"
+        - name: VAULT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: vault-token
+              key: token
       restartPolicy: OnFailure
+
+---
+# base/vault/base/resources/token-secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: vault-token
+  namespace: vault
+type: Opaque
+stringData:
+  token: "hvs.RlxnZiAFjQs7LfCH9f7X0U0y"  # Replace with your actual root token
