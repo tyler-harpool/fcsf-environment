@@ -16,7 +16,8 @@ spec:
       serviceAccountName: vault-auth
       initContainers:
       - name: wait-for-vault-init
-        image: busybox
+        image: busybox:1.36
+        imagePullPolicy: IfNotPresent
         command: ['sh', '-c', '
           until wget -q --spider http://vault-0.vault-internal:8200/v1/sys/health ||
                 wget -q --spider http://vault.vault.svc:8200/v1/sys/health;
