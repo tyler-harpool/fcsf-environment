@@ -23,7 +23,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: hello-spin
+  name: hello-spin-service
   namespace: default
 spec:
   selector:
