@@ -9,9 +9,22 @@ data:
     set -e
 
     echo "Checking Vault status..."
-    if ! vault status > /dev/null 2>&1; then
+
+    # Check initialization status first
+    INIT_STATUS=$(vault status 2>&1)
+
+    if echo "$INIT_STATUS" | grep -q "Sealed.*true"; then
+      echo "Vault is initialized but sealed."
+      # First check if we already have the unseal keys
+      if kubectl get secret -n $KUBERNETES_NAMESPACE vault-unseal-keys >/dev/null 2>&1; then
+        echo "Found existing unseal keys, using them..."
+        UNSEAL_KEYS=$(kubectl get secret -n $KUBERNETES_NAMESPACE vault-unseal-keys -o jsonpath='{.data.keys}' | base64 -d)
+      else
+        echo "Error: Vault is initialized but unseal keys are missing. Manual intervention required."
+        exit 1
+      fi
+    elif ! echo "$INIT_STATUS" | grep -q "Initialized.*true"; then
       echo "Initializing Vault..."
-      # Initialize with 5 key shares and 3 key threshold
       INIT_OUTPUT=$(vault operator init -key-shares=5 -key-threshold=3)
 
       # Extract and store root token
@@ -28,7 +41,7 @@ data:
         --from-literal=keys="$UNSEAL_KEYS" \
         --dry-run=client -o yaml | kubectl apply -f -
     else
-      echo "Vault is already initialized"
+      echo "Vault is already initialized and unsealed"
     fi
 
     # Keep the pod running for debugging
