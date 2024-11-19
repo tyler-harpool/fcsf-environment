@@ -9,7 +9,6 @@ data:
   server.insecure: "true"
   admin.enabled: "false"
   users.anonymous.enabled: "true"
-  kustomize.buildOptions: "--enable-helm"
 #  # Repo server address. (default "argocd-repo-server:8081")
 #  repo.server: "argocd-repo-server:8081"
 #
