@@ -5,7 +5,7 @@ namespace: external-secrets
 
 resources:
 - namespace.yaml
-- secretstore.yaml
+# - secretstore.yaml
 helmCharts:
 - name: external-secrets
   repo: https://charts.external-secrets.io
