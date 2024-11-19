@@ -18,7 +18,7 @@ patches:
         ui = true
         disable_mlock = true
         storage "raft" {
-          path = "/vault/data"
+          path = "/vault/fcsf"
           node_id = "node1"
         }
         listener "tcp" {

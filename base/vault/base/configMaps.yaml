@@ -70,51 +70,43 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: vault-config-script
+  name: vault-init-script
   namespace: vault
 data:
-  configure.sh: |
+  init.sh: |
     #!/bin/sh
     set -e
 
-    echo "Waiting for Vault to be ready..."
-    until vault status; do
-      sleep 5
-    done
+    echo "Checking Vault status..."
 
-    echo "Configuring Vault..."
+    if ! vault status > /dev/null 2>&1; then
+      echo "Initializing Vault..."
+      # Initialize with 5 key shares and 3 key threshold
+      INIT_OUTPUT=$(vault operator init -key-shares=5 -key-threshold=3)
+      echo "$INIT_OUTPUT" > /vault/keys/init-output.json
 
-    echo "Enabling kubernetes auth..."
-    vault auth enable kubernetes || true
+      # Extract root token
+      ROOT_TOKEN=$(echo "$INIT_OUTPUT" | grep 'Initial Root Token:' | awk '{print $NF}')
+      echo "Creating vault-token secret..."
+      kubectl -n vault create secret generic vault-token \
+        --from-literal=token=$ROOT_TOKEN \
+        --dry-run=client -o yaml | kubectl apply -f -
 
-    echo "Configuring kubernetes auth..."
-    vault write auth/kubernetes/config \
-      kubernetes_host="https://kubernetes.default.svc" \
-      token_reviewer_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
-      kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
-      issuer="https://kubernetes.default.svc.cluster.local"
+      # Extract unseal keys
+      echo "Creating vault-unseal-keys secret..."
+      UNSEAL_KEYS=$(echo "$INIT_OUTPUT" | grep 'Unseal Key' | awk '{print $NF}' | tr '\n' ' ')
+      kubectl -n vault create secret generic vault-unseal-keys \
+        --from-literal=keys="$UNSEAL_KEYS" \
+        --dry-run=client -o yaml | kubectl apply -f -
 
-    echo "Writing oauth policy..."
-    vault policy write oauth-policy - <<EOF
-    path "kv/data/oauth2-proxy/*" {
-      capabilities = ["read", "list"]
-    }
-    path "kv/metadata/oauth2-proxy/*" {
-      capabilities = ["list"]
-    }
-    EOF
+      # Unseal vault using first 3 keys
+      echo "Unsealing Vault..."
+      echo "$UNSEAL_KEYS" | tr ' ' '\n' | head -n 3 | while read key; do
+        vault operator unseal $key
+      done
+    else
+      echo "Vault is already initialized"
+    fi
 
-    echo "Creating oauth2-proxy role..."
-    vault write auth/kubernetes/role/oauth2-proxy \
-      bound_service_account_names=oauth2-proxy \
-      bound_service_account_namespaces=oauth \
-      policies=oauth-policy \
-      ttl=1h
-
-    echo "Enabling KV secrets engine..."
-    vault secrets enable -path=kv -version=2 kv || true
-
-    echo "Configuration complete!"
-
-    # Keep container running for debugging
+    # Keep the pod running for debugging
     tail -f /dev/null
