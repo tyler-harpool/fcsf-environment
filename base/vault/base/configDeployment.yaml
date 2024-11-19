@@ -16,11 +16,16 @@ spec:
       serviceAccountName: vault-auth
       initContainers:
       - name: wait-for-vault-init
-        image: busybox
-        command: ['sh', '-c', 'until kubectl get secret vault-token -n vault; do echo waiting for vault initialization; sleep 2; done;']
-      - name: wait-for-vault
-        image: busybox
-        command: ['sh', '-c', 'until wget -q --spider http://vault.vault.svc:8200/v1/sys/health; do echo waiting for vault; sleep 2; done;']
+        image: bitnami/kubectl:latest
+        command:
+        - /bin/sh
+        - -c
+        - |
+          until kubectl get secret vault-token -n vault --no-headers; do
+            echo "Waiting for vault-token secret..."
+            sleep 5
+          done
+          echo "vault-token secret found!"
       containers:
       - name: vault-config
         image: hashicorp/vault:1.13.3
