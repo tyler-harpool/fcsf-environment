@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: postgres
+  name: postgres    # Make sure this name matches in patches
   namespace: database
 spec:
   replicas: 1
@@ -15,12 +15,15 @@ spec:
     spec:
       containers:
       - name: postgres
-        image: postgres:17.1
+        image: postgres:14
         ports:
         - containerPort: 5432
         env:
         - name: POSTGRES_USER
-          value: app_user
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: username
         - name: POSTGRES_PASSWORD
           valueFrom:
             secretKeyRef:
