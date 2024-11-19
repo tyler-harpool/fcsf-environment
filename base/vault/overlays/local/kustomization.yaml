@@ -6,7 +6,7 @@ namespace: vault
 resources:
 - ../../base
 - ingress.yaml
-- vault-config.yaml
+
 patches:
 - target:
     kind: ConfigMap

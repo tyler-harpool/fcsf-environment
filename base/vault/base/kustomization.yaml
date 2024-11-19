@@ -6,7 +6,9 @@ namespace: vault
 
 resources:
 - namespace.yaml
-
+- rbac.yaml
+- serviceaccount.yaml
+- config-job.yaml
 helmCharts:
 - name: vault
   repo: https://helm.releases.hashicorp.com
