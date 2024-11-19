@@ -1,7 +1,7 @@
 apiVersion: core.spinoperator.dev/v1alpha1
 kind: SpinApp
 metadata:
-  name: hello-k3s
+  name: hello-spin
   namespace: default
 spec:
   image: "ttl.sh/hello-k3s:0.1.0"
