@@ -5,7 +5,7 @@ namespace: vault
 
 resources:
 - ingress.yaml
-
+- namespace.yaml
 helmCharts:
 - name: vault
   repo: https://helm.releases.hashicorp.com
