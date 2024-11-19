@@ -1,23 +1,16 @@
-# First, ensure the vault namespace exists
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: vault
----
-# The ArgoCD Application configuration
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: vault
-  namespace: argocd        # Application must be in argocd namespace
+  namespace: argocd
 spec:
   project: default
   source:
     repoURL: https://helm.releases.hashicorp.com
+    chart: vault
     targetRevision: 1.18.1
-    chart: vault           # Specifies this is a Helm chart
     helm:
-      values: |-
+      values: |
         injector:
           enabled: false
         server:
@@ -44,33 +37,10 @@ spec:
                 service_registration "kubernetes" {}
   destination:
     server: https://kubernetes.default.svc
-    namespace: vault       # Deploy Vault to the vault namespace
+    namespace: vault
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-      - PruneLast=true
----
-# Add an ingress for the Vault UI
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: vault-ingress
-  namespace: vault
-  annotations:
-    ingress.kubernetes.io/ssl-redirect: "false"
-    traefik.ingress.kubernetes.io/router.entrypoints: web
-spec:
-  rules:
-    - host: vault.rancher.localhost
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: vault
-                port:
-                  number: 8200

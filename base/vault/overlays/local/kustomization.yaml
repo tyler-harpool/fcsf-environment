@@ -5,12 +5,23 @@ namespace: vault
 
 resources:
 - ../../base
+- ingress.yaml
 
-patches:
-- target:
-    kind: Ingress
-    name: vault-ingress
-  patch: |-
-    - op: replace
-      path: /spec/rules/0/host
-      value: vault.rancher.localhost
+helmCharts:
+- name: vault
+  repo: https://helm.releases.hashicorp.com
+  version: 1.18.1
+  releaseName: vault
+  namespace: vault
+  includeCRDs: true
+  valuesInline:
+    server:
+      ha:
+        replicas: 1
+      resources:
+        requests:
+          memory: "256Mi"
+          cpu: "250m"
+        limits:
+          memory: "512Mi"
+          cpu: "500m"
