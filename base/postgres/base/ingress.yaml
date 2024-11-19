@@ -1,16 +1,13 @@
-apiVersion: traefik.io/v1alpha1
+apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRouteTCP
 metadata:
-  name: postgres
+  name: postgres-tcp
   namespace: database
-  labels:
-    traefik.tcp.routers: "postgres"
 spec:
   entryPoints:
     - postgres
   routes:
     - match: HostSNI(`postgres.rancher.localhost`)
       services:
-        - name: postgresql
-          namespace: database
+        - name: postgres
           port: 5432
