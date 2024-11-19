@@ -15,11 +15,11 @@ spec:
     spec:
       serviceAccountName: vault-auth
       initContainers:
-      - name: wait-for-vault
-        image: busybox
-        command: ['sh', '-c', '
-          until wget -T 5 -q --spider http://vault-0.vault-internal:8200/v1/sys/health || wget -T 5 -q --spider http://vault.vault.svc:8200/v1/sys/health;
-          do echo "waiting for vault"; sleep 2; done']
+        - name: wait-for-vault
+          image: busybox
+          command: ['sh', '-c', '
+            until nc -z vault-0.vault-internal 8200 || nc -z vault.vault.svc 8200;
+            do echo "waiting for vault to listen on port 8200"; sleep 2; done']
       containers:
       - name: vault-init
         image: hashicorp/vault:1.13.3
