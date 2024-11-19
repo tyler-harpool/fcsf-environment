@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vault-config
+  namespace: vault
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vault-config
+  template:
+    metadata:
+      labels:
+        app: vault-config
+    spec:
+      serviceAccountName: vault-config
+      initContainers:
+      - name: wait-for-vault
+        image: busybox
+        command: ['sh', '-c', 'until wget -q --spider http://vault.vault.svc:8200/v1/sys/health; do echo waiting for vault; sleep 2; done;']
+      containers:
+      - name: vault-config
+        image: hashicorp/vault:1.13.3
+        command: ["/bin/sh"]
+        args: ["/scripts/configure.sh"]
+        env:
+        - name: VAULT_ADDR
+          value: "http://vault.vault.svc:8200"
+        - name: VAULT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: vault-token
+              key: token
+        volumeMounts:
+        - name: config-script
+          mountPath: /scripts
+          readOnly: true
+      volumes:
+      - name: config-script
+        configMap:
+          name: vault-config-script
+          defaultMode: 0755

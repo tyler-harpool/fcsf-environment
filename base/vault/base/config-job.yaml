@@ -1,61 +1,42 @@
-# base/vault/base/resources/config-job.yaml
-apiVersion: batch/v1
-kind: Job
+apiVersion: v1
+kind: ConfigMap
 metadata:
-  name: vault-config-$(date +%s)  # This won't work directly, let's use a different approach
+  name: vault-config-script
   namespace: vault
-  generateName: vault-config-  # Use generateName instead
-spec:
-  template:
-    spec:
-      serviceAccountName: vault-auth
-      containers:
-      - name: vault-config
-        image: hashicorp/vault:1.13.3
-        command: ["/bin/sh", "-c"]
-        args:
-        - |
-          # Login using root token
-          vault login $VAULT_TOKEN
+data:
+  configure.sh: |
+    #!/bin/sh
+    vault login $VAULT_TOKEN
 
-          # Enable and configure Kubernetes auth
-          vault auth enable kubernetes || true
+    # Enable and configure Kubernetes auth
+    vault auth enable kubernetes || true
 
-          # Configure Kubernetes auth
-          vault write auth/kubernetes/config \
-            kubernetes_host="https://kubernetes.default.svc" \
-            token_reviewer_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
-            kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
-            issuer="https://kubernetes.default.svc.cluster.local"
+    # Configure Kubernetes auth
+    vault write auth/kubernetes/config \
+      kubernetes_host="https://kubernetes.default.svc" \
+      token_reviewer_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
+      kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
+      issuer="https://kubernetes.default.svc.cluster.local"
 
-          # Create policies
-          vault policy write oauth-policy - <<EOF
-          path "kv/data/oauth2-proxy/*" {
-            capabilities = ["read", "list"]
-          }
-          path "kv/metadata/oauth2-proxy/*" {
-            capabilities = ["list"]
-          }
-          EOF
+    # Create policies
+    vault policy write oauth-policy - <<EOF
+    path "kv/data/oauth2-proxy/*" {
+      capabilities = ["read", "list"]
+    }
+    path "kv/metadata/oauth2-proxy/*" {
+      capabilities = ["list"]
+    }
+    EOF
 
-          # Create roles
-          vault write auth/kubernetes/role/oauth2-proxy \
-            bound_service_account_names=oauth2-proxy \
-            bound_service_account_namespaces=oauth \
-            policies=oauth-policy \
-            ttl=1h
+    # Create roles
+    vault write auth/kubernetes/role/oauth2-proxy \
+      bound_service_account_names=oauth2-proxy \
+      bound_service_account_namespaces=oauth \
+      policies=oauth-policy \
+      ttl=1h
 
-          # Enable secrets engines
-          vault secrets enable -path=kv -version=2 kv || true
-        env:
-        - name: VAULT_ADDR
-          value: "http://vault.vault.svc:8200"
-        - name: VAULT_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: vault-token
-              key: token
-      restartPolicy: OnFailure
+    # Enable secrets engines
+    vault secrets enable -path=kv -version=2 kv || true
 
 ---
 # base/vault/base/resources/token-secret.yaml

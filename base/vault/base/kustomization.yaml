@@ -9,6 +9,8 @@ resources:
 - rbac.yaml
 - serviceaccount.yaml
 - config-job.yaml
+- initContainer.yaml
+
 helmCharts:
 - name: vault
   repo: https://helm.releases.hashicorp.com
