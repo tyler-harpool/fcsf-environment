@@ -17,16 +17,18 @@ spec:
       initContainers:
       - name: wait-for-vault
         image: busybox
-        command: ['sh', '-c', 'cp /bin/vault /vault-binary/vault && chmod +x /vault-binary/vault']
-      - name: copy-vault-binary  # Add init container to copy vault binary
+        command: ['sh', '-c', '
+          until nc -z vault-0.vault-internal 8200 || nc -z vault.vault.svc 8200;
+          do echo "waiting for vault to listen on port 8200"; sleep 2; done']
+      - name: copy-vault-binary
         image: hashicorp/vault:1.13.3
-        command: ['sh', '-c', 'cp /bin/vault /vault-binary/vault']
+        command: ['sh', '-c', 'cp /bin/vault /vault-binary/vault && chmod +x /vault-binary/vault']
         volumeMounts:
         - name: vault-binary
           mountPath: /vault-binary
       containers:
       - name: vault-init
-        image: bitnami/kubectl:latest # Changed the image to include kubectl
+        image: bitnami/kubectl:latest
         command: ["/bin/sh"]
         args: ["/scripts/init.sh"]
         env:
@@ -36,15 +38,13 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        - name: VAULT_BIN  # Add path to vault binary
-          value: "/usr/local/bin/vault"
         volumeMounts:
         - name: init-script
           mountPath: /scripts
           readOnly: true
         - name: vault-keys
           mountPath: /vault/keys
-        - name: vault-binary  # Add volume mount for vault binary
+        - name: vault-binary
           mountPath: /usr/local/bin/vault
       volumes:
       - name: init-script
@@ -53,5 +53,5 @@ spec:
           defaultMode: 0755
       - name: vault-keys
         emptyDir: {}
-      - name: vault-binary  # Add volume for vault binary
+      - name: vault-binary
         emptyDir: {}
