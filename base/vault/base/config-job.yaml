@@ -2,8 +2,9 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: vault-config
+  name: vault-config-$(date +%s)  # This won't work directly, let's use a different approach
   namespace: vault
+  generateName: vault-config-  # Use generateName instead
 spec:
   template:
     spec:
