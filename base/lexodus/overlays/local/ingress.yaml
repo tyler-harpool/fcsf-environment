@@ -1,0 +1,35 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: lexodus-ingress
+  namespace: default
+  annotations:
+    ingress.kubernetes.io/ssl-redirect: "false"
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  rules:
+    - host: lexodus.rancher.localhost
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: lexodus
+                port:
+                  number: 80
+---
+# Optional: Service configuration if not already created by the operator
+apiVersion: v1
+kind: Service
+metadata:
+  name: lexodus
+  namespace: default
+spec:
+  selector:
+    app: lexodus
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80  # Adjust this if your Spin app uses a different port
+  type: ClusterIP
