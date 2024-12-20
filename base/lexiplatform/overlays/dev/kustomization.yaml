@@ -1,0 +1,28 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+bases:
+- ../../base
+
+namePrefix: dev-
+
+patches:
+- path: patches/deployments/replicas-patch.yaml
+- path: patches/configmaps/environment-patch.yaml
+
+secretGenerator:
+- name: service-secrets
+  envs:
+  - secrets/secrets.env
+  type: Opaque
+
+configMapGenerator:
+- name: service-configs
+  behavior: merge
+  literals:
+  - ENVIRONMENT=development
+  - LOG_LEVEL=debug
+
+images:
+- name: lexiplatform/gavel
+  newTag: dev

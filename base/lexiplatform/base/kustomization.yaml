@@ -1,0 +1,26 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- namespaces/lexiplatform.yaml
+- services/gavel.yaml
+- services/case-service.yaml
+- services/document-service.yaml
+- services/calendar-service.yaml
+- services/billing-service.yaml
+- services/notification-service.yaml
+- services/search-service.yaml
+- deployments/gavel.yaml
+- deployments/case-service.yaml
+- deployments/document-service.yaml
+- deployments/calendar-service.yaml
+- deployments/billing-service.yaml
+- deployments/notification-service.yaml
+- deployments/search-service.yaml
+- configmaps/service-configs.yaml
+- secrets/service-secrets.yaml
+
+commonLabels:
+  app.kubernetes.io/part-of: lexiplatform
+
+namespace: lexiplatform

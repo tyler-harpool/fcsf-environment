@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: service-configs
+data:
+  ENVIRONMENT: base
+  LOG_LEVEL: info
